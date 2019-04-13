@@ -63,6 +63,7 @@ import static android.widget.Toast.makeText;
 
 public class PocketSphinxActivity extends Activity implements
         RecognitionListener ,VolumeDialog.VolumeAdjustListener {
+    String TAG = PocketSphinxActivity.class.getSimpleName();
 
     /* Named searches allow to quickly reconfigure the decoder */
     private static final String KWS_SEARCH = "wakeup";
@@ -115,15 +116,15 @@ public class PocketSphinxActivity extends Activity implements
         textToSpeech = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
             @Override
             public void onInit(int status) {
-                Log.d("kevin", "TTS init status:" + status);
+                Log.d(TAG, "TTS init status:" + status);
                 if (status != TextToSpeech.ERROR) {
                     int result = textToSpeech.setLanguage(Locale.getDefault());//Locale.);
 
-                    Log.d("kevin", "speak result:" + result);
+                    Log.d(TAG, "speak result:" + result);
 
                     result = textToSpeech.speak("please say "+KEYPHRASE+" to open KeyWord!", TextToSpeech.QUEUE_FLUSH, null);
 
-                    Log.d("kevin", "speak result:" + result);
+                    Log.d(TAG, "speak result:" + result);
                 }
             }
         });
@@ -136,7 +137,7 @@ public class PocketSphinxActivity extends Activity implements
 
                 result = textToSpeech.speak("please say "+KEYPHRASE+" to open Key Word!", TextToSpeech.QUEUE_FLUSH, null);
 
-                Log.d("kevin", "speak result:" + result);
+                Log.d(TAG, "speak result:" + result);
             }
         });
 

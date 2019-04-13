@@ -1,0 +1,4 @@
+#Sat Apr 13 12:27:22 CST 2019
+base.0=/Users/lyonhsu/Android/Self/LyonPocketSphinx/wear/build/intermediates/transforms/dexMerger/debug/0
+path.0=classes.dex
+renamed.0=classes.dex

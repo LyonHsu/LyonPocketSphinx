@@ -1,0 +1,19 @@
+{
+    "logs": [
+        {
+            "outputFile": "/Users/lyonhsu/Android/Self/LyonPocketSphinx/wear/build/intermediates/incremental/mergeDebugResources/merged.dir/values-uz/values-uz.xml",
+            "map": [
+                {
+                    "source": "/Users/lyonhsu/.gradle/caches/transforms-1/files-1.1/support-compat-26.0.2.aar/71a5d32d293655b1b3820078d5163e31/res/values-uz/values-uz.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "100",
+                        "endOffsets": "151"
+                    }
+                }
+            ]
+        }
+    ]
+}
