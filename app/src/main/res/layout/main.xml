@@ -1,22 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/mainLayout"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
-    android:orientation="vertical"
     android:padding="16dp" >
 
     <TextView
         android:id="@+id/caption_text"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
         android:textAppearance="?android:attr/textAppearanceLarge"
+        android:text="test"
+        android:textSize="@dimen/textSize"
+        android:gravity="center"
         android:typeface="sans" />
 
-    <LinearLayout
+    <RelativeLayout
+
         android:layout_width="match_parent"
-        android:layout_height="0dp"
+        android:layout_below="@+id/caption_text"
+        android:layout_height="match_parent"
         android:layout_weight="1"
         android:gravity="center" >
 
@@ -24,14 +28,29 @@
             android:id="@+id/result_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="@dimen/textSize"
             android:textAppearance="?android:attr/textAppearanceMedium" />
-    </LinearLayout>
+    </RelativeLayout>
+
+    <TextView
+        android:id="@+id/version"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="version:"
+        android:textSize="@dimen/textSize"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentRight="true"
+        android:layout_marginBottom="20dp"
+        android:layout_marginRight="20dp"
+        />
 
     <TextView
         android:id="@+id/volume"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal|bottom"
+        android:layout_alignParentBottom="true"
         android:textAppearance="?android:attr/textAppearanceLarge"
         android:typeface="sans" />
-</LinearLayout>
+</RelativeLayout>

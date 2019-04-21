@@ -32,11 +32,15 @@ package edu.cmu.pocketsphinx.demo;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.ActivityNotFoundException;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.media.AudioManager;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
+import android.speech.RecognizerIntent;
 import android.speech.tts.TextToSpeech;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
@@ -50,6 +54,7 @@ import android.widget.Toast;
 import java.io.File;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Locale;
 
@@ -63,7 +68,7 @@ import static android.widget.Toast.makeText;
 
 public class PocketSphinxActivity extends Activity implements
         RecognitionListener ,VolumeDialog.VolumeAdjustListener {
-    String TAG = PocketSphinxActivity.class.getSimpleName();
+    static String TAG = PocketSphinxActivity.class.getSimpleName();
 
     /* Named searches allow to quickly reconfigure the decoder */
     private static final String KWS_SEARCH = "wakeup";
@@ -73,7 +78,7 @@ public class PocketSphinxActivity extends Activity implements
     private static final String MENU_SEARCH = "menu";
 
     /* Keyword we are looking for to activate menu */
-    private static final String KEYPHRASE = "ok google";
+    private static final String KEYPHRASE = "google";
 
     /* Used to handle permission request */
     private static final int PERMISSIONS_REQUEST_RECORD_AUDIO = 1;
@@ -84,6 +89,11 @@ public class PocketSphinxActivity extends Activity implements
     private TextToSpeech textToSpeech;
     private VolumeDialog dialog;
     private AudioManager mAudioMgr;
+
+    int timeOut = 10 * 1000;
+
+    private final int REQ_CODE_SPEECH_INPUT = 100;
+
 
     @Override
     public void onCreate(Bundle state) {
@@ -122,7 +132,7 @@ public class PocketSphinxActivity extends Activity implements
 
                     Log.d(TAG, "speak result:" + result);
 
-                    result = textToSpeech.speak("please say "+KEYPHRASE+" to open KeyWord!", TextToSpeech.QUEUE_FLUSH, null);
+                    result = textToSpeech.speak("please say " + KEYPHRASE + " to open KeyWord!", TextToSpeech.QUEUE_FLUSH, null);
 
                     Log.d(TAG, "speak result:" + result);
                 }
@@ -134,19 +144,52 @@ public class PocketSphinxActivity extends Activity implements
             @Override
             public void onClick(View v) {
                 int result = textToSpeech.setLanguage(Locale.getDefault());//Locale.);
-
-                result = textToSpeech.speak("please say "+KEYPHRASE+" to open Key Word!", TextToSpeech.QUEUE_FLUSH, null);
-
+                result = textToSpeech.speak("please say " + KEYPHRASE + " to open Key Word!", TextToSpeech.QUEUE_FLUSH, null);
                 Log.d(TAG, "speak result:" + result);
+                Log.d("kevin", "btnSpeak ");
+                promptSpeechInput();
             }
         });
 
-        int Maxvolume =  mAudioMgr.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
-        int volume =  mAudioMgr.getStreamVolume(AudioManager.STREAM_MUSIC);
+        int Maxvolume = mAudioMgr.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+        int volume = mAudioMgr.getStreamVolume(AudioManager.STREAM_MUSIC);
         ((TextView) findViewById(R.id.volume))
-                .setText("调节后的音乐音量大小为：" + volume+"/"+Maxvolume);
+                .setText("调节后的音乐音量大小为：" + volume + "/" + Maxvolume);
+
+        TextView version = (TextView)findViewById(R.id.version);
+        version.setText("Ver:"+ Version.getVersionName(this)+" "+Version.getVersionCode(this));
+    }
+
+    /**
+     * Showing google speech input dialog
+     */
+    private void promptSpeechInput() {
+        //aiService.startListening();
+        Log.d(TAG,"promptSpeechInput");
+        if (textToSpeech != null) {
+            textToSpeech.stop();
+        }
+//        if(mp != null)
+//        {
+//            mp.stop();
+//        }
+
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.TAIWAN);
+        intent.putExtra(RecognizerIntent.EXTRA_PROMPT,
+                getString(R.string.speech_prompt));
+        try {
+            startActivityForResult(intent, REQ_CODE_SPEECH_INPUT);
+        } catch (ActivityNotFoundException a) {
+            Toast.makeText(getApplicationContext(),
+                    getString(R.string.speech_not_supported),
+                    Toast.LENGTH_SHORT).show();
+        }
 
 
+        //ApiAi("video");
     }
 
     @Override
@@ -183,12 +226,14 @@ public class PocketSphinxActivity extends Activity implements
     }
 
 
-
+    //Recognizer init
     private static class SetupTask extends AsyncTask<Void, Void, Exception> {
         WeakReference<PocketSphinxActivity> activityReference;
+
         SetupTask(PocketSphinxActivity activity) {
             this.activityReference = new WeakReference<>(activity);
         }
+
         @Override
         protected Exception doInBackground(Void... params) {
             try {
@@ -200,8 +245,10 @@ public class PocketSphinxActivity extends Activity implements
             }
             return null;
         }
+
         @Override
         protected void onPostExecute(Exception result) {
+            Log.d(TAG,"onPostExecute :"+result);
             if (result != null) {
                 ((TextView) activityReference.get().findViewById(R.id.caption_text))
                         .setText("Failed to init recognizer " + result);
@@ -211,9 +258,10 @@ public class PocketSphinxActivity extends Activity implements
         }
     }
 
+    //Permissions
     @Override
     public void onRequestPermissionsResult(int requestCode,
-                                           @NonNull String[] permissions, @NonNull  int[] grantResults) {
+                                           @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
         if (requestCode == PERMISSIONS_REQUEST_RECORD_AUDIO) {
@@ -248,6 +296,7 @@ public class PocketSphinxActivity extends Activity implements
             return;
 
         String text = hypothesis.getHypstr();
+        Log.d(TAG, "onPartialResult():" + text);
         if (text.equals(KEYPHRASE))
             switchSearch(MENU_SEARCH);
         else if (text.equals(DIGITS_SEARCH))
@@ -265,6 +314,7 @@ public class PocketSphinxActivity extends Activity implements
      */
     @Override
     public void onResult(Hypothesis hypothesis) {
+        Log.d(TAG, "onResult():");
         ((TextView) findViewById(R.id.result_text)).setText("");
         if (hypothesis != null) {
             String text = hypothesis.getHypstr();
@@ -274,6 +324,7 @@ public class PocketSphinxActivity extends Activity implements
 
     @Override
     public void onBeginningOfSpeech() {
+//        Log.d(TAG, "onBeginningOfSpeech()");
     }
 
     /**
@@ -281,18 +332,26 @@ public class PocketSphinxActivity extends Activity implements
      */
     @Override
     public void onEndOfSpeech() {
+//        Log.d(TAG, "onEndOfSpeech()");
         if (!recognizer.getSearchName().equals(KWS_SEARCH))
             switchSearch(KWS_SEARCH);
     }
 
     private void switchSearch(String searchName) {
+        Log.d(TAG, "switchSearch():" + searchName);
         recognizer.stop();
-
-        // If we are not spotting, start listening with timeout (10000 ms or 10 seconds).
-        if (searchName.equals(KWS_SEARCH))
-            recognizer.startListening(searchName);
-        else
-            recognizer.startListening(searchName, 10000);
+        try {
+            // If we are not spotting, start listening with timeout (10000 ms or 10 seconds).
+            if (searchName.equals(KWS_SEARCH)) {
+                recognizer.startListening(searchName);
+            } else {
+                recognizer.startListening(searchName, timeOut);
+                promptSpeechInput();
+            }
+        }catch (Exception e){
+            Log.e(TAG,""+e.getMessage());
+            recognizer.startListening(searchName, timeOut);
+        }
 
         String caption = getResources().getString(captions.get(searchName));
         ((TextView) findViewById(R.id.caption_text)).setText(caption);
@@ -344,4 +403,35 @@ public class PocketSphinxActivity extends Activity implements
     public void onTimeout() {
         switchSearch(KWS_SEARCH);
     }
+
+    /**
+     * Receiving speech input
+     */
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        switch (requestCode) {
+            case REQ_CODE_SPEECH_INPUT: {
+                if (resultCode == RESULT_OK && null != data) {
+                    ArrayList<String> result = data
+                            .getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+                    Log.d(TAG,"REQ_CODE_SPEECH_INPUT result"+result);
+                    if(result.size()>0) {
+                        ((TextView) findViewById(R.id.caption_text)).setText(result.get(0));
+                        Log.d(TAG, "");
+                        switchSearch(KWS_SEARCH);
+                    }else{
+                        Log.d(TAG,"REQ_CODE_SPEECH_INPUT result.size()<=0 fail 辨識失敗");
+                        switchSearch(KWS_SEARCH);
+                    }
+                    break;
+                }else{
+                    Log.d(TAG,"REQ_CODE_SPEECH_INPUT fail 辨識失敗");
+                    switchSearch(KWS_SEARCH);
+                }
+            }
+        }
+    }
 }
+
