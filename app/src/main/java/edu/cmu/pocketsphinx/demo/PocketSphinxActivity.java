@@ -134,7 +134,8 @@ public class PocketSphinxActivity extends Activity implements
         new SetupTask(this).execute();
 
         //setup Google Recognize
-        GoogleRecognizeIntent();
+        if(isDefault)
+            GoogleRecognizeIntent();
 
         textToSpeech = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
             @Override
