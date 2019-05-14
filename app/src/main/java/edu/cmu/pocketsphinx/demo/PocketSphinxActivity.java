@@ -48,6 +48,7 @@ import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -78,7 +79,7 @@ public class PocketSphinxActivity extends Activity implements
     private static final String MENU_SEARCH = "menu";
 
     /* Keyword we are looking for to activate menu */
-    private static final String KEYPHRASE = "google";
+    private static final String KEYPHRASE = "ok google";
 
     /* Used to handle permission request */
     private static final int PERMISSIONS_REQUEST_RECORD_AUDIO = 1;
@@ -94,6 +95,12 @@ public class PocketSphinxActivity extends Activity implements
 
     private final int REQ_CODE_SPEECH_INPUT = 100;
 
+    android.speech.RecognitionListener recognitionListener;
+    boolean isDefault = false;
+    private ProgressBar progressBar;
+    private ProgressBar progressBar2;
+    private android.speech.SpeechRecognizer speech = null;
+    private Intent recognizerIntent;
 
     @Override
     public void onCreate(Bundle state) {
@@ -113,6 +120,9 @@ public class PocketSphinxActivity extends Activity implements
         ((TextView) findViewById(R.id.caption_text))
                 .setText("Preparing the recognizer");
 
+        progressBar = (ProgressBar)findViewById(R.id.progressBar1);
+        progressBar2 = (ProgressBar)findViewById(R.id.progressBar2);
+
         // Check if user has given permission to record audio
         int permissionCheck = ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.RECORD_AUDIO);
         if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
@@ -122,6 +132,9 @@ public class PocketSphinxActivity extends Activity implements
         // Recognizer initialization is a time-consuming and it involves IO,
         // so we execute it in async task
         new SetupTask(this).execute();
+
+        //setup Google Recognize
+        GoogleRecognizeIntent();
 
         textToSpeech = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
             @Override
@@ -174,20 +187,24 @@ public class PocketSphinxActivity extends Activity implements
 //            mp.stop();
 //        }
 
-        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.TAIWAN);
-        intent.putExtra(RecognizerIntent.EXTRA_PROMPT,
-                getString(R.string.speech_prompt));
-        try {
-            startActivityForResult(intent, REQ_CODE_SPEECH_INPUT);
-        } catch (ActivityNotFoundException a) {
-            Toast.makeText(getApplicationContext(),
-                    getString(R.string.speech_not_supported),
-                    Toast.LENGTH_SHORT).show();
+        if(isDefault) {
+            Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                    RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.TAIWAN);
+            intent.putExtra(RecognizerIntent.EXTRA_PROMPT,
+                    getString(R.string.speech_prompt));
+            try {
+                startActivityForResult(intent, REQ_CODE_SPEECH_INPUT);
+            } catch (ActivityNotFoundException a) {
+                Toast.makeText(getApplicationContext(),
+                        getString(R.string.speech_not_supported),
+                        Toast.LENGTH_SHORT).show();
+            }
+        }else{
+            Log.e(TAG,"GoogleRecognizeIntent");
+            speech.startListening(recognizerIntent);
         }
-
 
         //ApiAi("video");
     }
@@ -212,6 +229,85 @@ public class PocketSphinxActivity extends Activity implements
     public void onVolumeAdjust(int volume) {
         ((TextView) findViewById(R.id.volume))
                 .setText("调节后的音乐音量大小为：" + volume);
+    }
+
+    private void GoogleRecognizeIntent(){
+        recognitionListener =new android.speech.RecognitionListener(){
+            @Override
+            public void onReadyForSpeech(Bundle params) {
+                Log.i(TAG, "Google onReadyForSpeech");
+                Log.e(TAG, "Google 准备就绪，可以开始说话");
+                textToSpeech.speak("please say some things",TextToSpeech.QUEUE_FLUSH, null);
+            }
+
+            @Override
+            public void onBeginningOfSpeech() {
+                Log.e(TAG, "Google onBeginningOfSpeech");
+                progressBar.setIndeterminate(false);
+                progressBar2.setIndeterminate(false);
+                progressBar2.setMax(10);
+            }
+
+            @Override
+            public void onRmsChanged(float rmsdB) {
+                Log.i(TAG, "Google onRmsChanged: " + rmsdB);
+                progressBar2.setProgress((int) rmsdB);
+            }
+
+            @Override
+            public void onBufferReceived(byte[] buffer) {
+                Log.i(TAG, "Google onBufferReceived: " + buffer);
+            }
+
+            @Override
+            public void onEndOfSpeech() {
+                Log.i(TAG, "Google onEndOfSpeech");
+                progressBar2.setIndeterminate(true);
+                speech.stopListening();
+                boolean isStart=recognizer.startListening(MENU_SEARCH,timeOut);
+                Log.i(TAG,"onEndOfSpeech recognizer.startListening:"+isStart);
+            }
+
+            @Override
+            public void onError(int errorCode) {
+                String errorMessage = getErrorText(errorCode);
+                Log.e(TAG, "Google Lyon Say :"+errorMessage);
+                ((TextView) findViewById(R.id.result_text)).setText(errorMessage);
+                speech.stopListening();
+                boolean isStart=recognizer.startListening(MENU_SEARCH,timeOut);
+                Log.i(TAG,"onError recognizer.startListening:"+isStart);
+            }
+
+            @Override
+            public void onResults(Bundle results) {
+                Log.i(TAG, "Google onResults");
+                ArrayList<String> matches = results.getStringArrayList(android.speech.SpeechRecognizer.RESULTS_RECOGNITION);
+                String text = "";
+                for (String result : matches){
+                    text += result + "\n";
+                    break;
+                }
+                Log.i(TAG, "Google onResults:"+text);
+                ((TextView) findViewById(R.id.result_text)).setText(text);
+            }
+
+            @Override
+            public void onPartialResults(Bundle partialResults) {
+                Log.i(TAG, "Google onPartialResults");
+            }
+
+            @Override
+            public void onEvent(int eventType, Bundle params) {
+                Log.i(TAG, "Google onEvent");
+            }
+        };
+        speech = android.speech.SpeechRecognizer.createSpeechRecognizer(this);
+        speech.setRecognitionListener(recognitionListener);
+        recognizerIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "en");//en
+        recognizerIntent.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, this.getPackageName());
+        recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_WEB_SEARCH);
+        recognizerIntent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
     }
 
 
@@ -278,7 +374,6 @@ public class PocketSphinxActivity extends Activity implements
     @Override
     public void onDestroy() {
         super.onDestroy();
-
         if (recognizer != null) {
             recognizer.cancel();
             recognizer.shutdown();
@@ -297,6 +392,8 @@ public class PocketSphinxActivity extends Activity implements
 
         String text = hypothesis.getHypstr();
         Log.d(TAG, "onPartialResult():" + text);
+        ((TextView) findViewById(R.id.result_text)).setText(text);
+
         if (text.equals(KEYPHRASE))
             switchSearch(MENU_SEARCH);
         else if (text.equals(DIGITS_SEARCH))
@@ -319,12 +416,16 @@ public class PocketSphinxActivity extends Activity implements
         if (hypothesis != null) {
             String text = hypothesis.getHypstr();
             makeText(getApplicationContext(), text, Toast.LENGTH_SHORT).show();
+        }else{
+
         }
     }
 
     @Override
     public void onBeginningOfSpeech() {
-//        Log.d(TAG, "onBeginningOfSpeech()");
+        Log.d(TAG, "onBeginningOfSpeech()");
+        progressBar.setIndeterminate(true);
+        progressBar.setMax(10);
     }
 
     /**
@@ -333,6 +434,7 @@ public class PocketSphinxActivity extends Activity implements
     @Override
     public void onEndOfSpeech() {
 //        Log.d(TAG, "onEndOfSpeech()");
+        progressBar.setIndeterminate(false);
         if (!recognizer.getSearchName().equals(KWS_SEARCH))
             switchSearch(KWS_SEARCH);
     }
@@ -340,16 +442,21 @@ public class PocketSphinxActivity extends Activity implements
     private void switchSearch(String searchName) {
         Log.d(TAG, "switchSearch():" + searchName);
         recognizer.stop();
+
         try {
             // If we are not spotting, start listening with timeout (10000 ms or 10 seconds).
             if (searchName.equals(KWS_SEARCH)) {
+                Log.i(TAG,"recognizer.startListening:"+searchName);
                 recognizer.startListening(searchName);
             } else {
-                recognizer.startListening(searchName, timeOut);
+//                Log.i(TAG,"recognizer.startListening:"+searchName +" timeOut");
+//                recognizer.startListening(searchName, timeOut);
+                recognizer.cancel();
                 promptSpeechInput();
             }
         }catch (Exception e){
             Log.e(TAG,""+e.getMessage());
+            Log.i(TAG,"recognizer.startListening:"+searchName +" timeOut");
             recognizer.startListening(searchName, timeOut);
         }
 
@@ -364,9 +471,7 @@ public class PocketSphinxActivity extends Activity implements
         recognizer = SpeechRecognizerSetup.defaultSetup()
                 .setAcousticModel(new File(assetsDir, "en-us-ptm"))
                 .setDictionary(new File(assetsDir, "cmudict-en-us.dict"))
-
                 .setRawLogDir(assetsDir) // To disable logging of raw audio comment out this call (takes a lot of space on the device)
-
                 .getRecognizer();
         recognizer.addListener(this);
 
@@ -392,6 +497,8 @@ public class PocketSphinxActivity extends Activity implements
         // Phonetic search
         File phoneticModel = new File(assetsDir, "en-phone.dmp");
         recognizer.addAllphoneSearch(PHONE_SEARCH, phoneticModel);
+
+
     }
 
     @Override
@@ -432,6 +539,44 @@ public class PocketSphinxActivity extends Activity implements
                 }
             }
         }
+    }
+
+    private static String getErrorText(int errorCode) {
+        String message;
+        switch (errorCode) {
+            case android.speech.SpeechRecognizer.ERROR_AUDIO:
+                message = "Google Audio recording error 音频问题";
+                break;
+            case android.speech.SpeechRecognizer.ERROR_CLIENT:
+                message = "Google Client side error 其它客户端错误";
+                break;
+            case android.speech.SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS:
+                message = "Google Insufficient permissions 权限不足";
+                break;
+            case android.speech.SpeechRecognizer.ERROR_NETWORK:
+                message = "Google Network error 网络问题";
+                break;
+            case android.speech.SpeechRecognizer.ERROR_NETWORK_TIMEOUT:
+                message = "Google Network timeout 网络连接超时";
+                break;
+            case android.speech.SpeechRecognizer.ERROR_NO_MATCH:
+                message = "Google No match 没有匹配的识别结果";
+                break;
+            case android.speech.SpeechRecognizer.ERROR_RECOGNIZER_BUSY:
+                message = "Google RecognitionService busy 引擎忙";
+                break;
+            case android.speech.SpeechRecognizer.ERROR_SERVER:
+                message = "Google error from server 服务端错误";
+                break;
+            case android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT:
+                message = "Google No speech input 没有语音输入";
+                break;
+            default:
+                message = "Google Didn't understand, please try again. 识别失败";
+                break;
+        }
+
+        return message;
     }
 }
 
